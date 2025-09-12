@@ -31,7 +31,6 @@ jobs:
       run: |
         IMAGE_NAME=${{ secrets.AZURE_ACR_NAME }}.azurecr.io/genai-chatbot:${{ github.sha }}
 
-        # Debug output
         echo "Container App Name: ${{ secrets.AZURE_CONTAINERAPP_NAME }}"
         echo "Resource Group: ${{ secrets.AZURE_RESOURCE_GROUP }}"
         echo "Image Name: $IMAGE_NAME"
@@ -47,11 +46,17 @@ jobs:
           --environment praven18gebai \
           --cpu 0.5 --memory 1.0Gi \
           --min-replicas 1 --max-replicas 2 \
-          --set-env-vars AZURE_OPENAI_KEY=${{ secrets.AZURE_OPENAI_KEY }} AZURE_OPENAI_ENDPOINT=${{ secrets.AZURE_OPENAI_ENDPOINT }}
+          --registry-server ${{ secrets.AZURE_ACR_NAME }}.azurecr.io \
+          --registry-username ${{ secrets.ACR_USERNAME }} \
+          --registry-password ${{ secrets.ACR_PASSWORD }} \
+          --env-vars AZURE_OPENAI_KEY=${{ secrets.AZURE_OPENAI_KEY }} AZURE_OPENAI_ENDPOINT=${{ secrets.AZURE_OPENAI_ENDPOINT }}
 
         # Update container app
         az containerapp update \
           --name ${{ secrets.AZURE_CONTAINERAPP_NAME }} \
           --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
           --image $IMAGE_NAME \
-          --set-env-vars AZURE_OPENAI_KEY=${{ secrets.AZURE_OPENAI_KEY }} AZURE_OPENAI_ENDPOINT=${{ secrets.AZURE_OPENAI_ENDPOINT }}
+          --registry-server ${{ secrets.AZURE_ACR_NAME }}.azurecr.io \
+          --registry-username ${{ secrets.ACR_USERNAME }} \
+          --registry-password ${{ secrets.ACR_PASSWORD }} \
+          --env-vars AZURE_OPENAI_KEY=${{ secrets.AZURE_OPENAI_KEY }} AZURE_OPENAI_ENDPOINT=${{ secrets.AZURE_OPENAI_ENDPOINT }}
