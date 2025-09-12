@@ -35,3 +35,4 @@ jobs:
           --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
           --image $IMAGE_NAME \
           --set-env-vars AZURE_OPENAI_KEY=${{ secrets.AZURE_OPENAI_KEY }} AZURE_OPENAI_ENDPOINT=${{ secrets.AZURE_OPENAI_ENDPOINT }}
+
