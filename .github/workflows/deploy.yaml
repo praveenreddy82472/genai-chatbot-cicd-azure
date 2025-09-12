@@ -1,0 +1,37 @@
+name: Build and Deploy to Azure
+
+on:
+  push:
+    branches:
+      - main  # run on push to main branch
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Log in to Azure
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+    - name: Log in to ACR
+      run: |
+        az acr login --name ${{ secrets.AZURE_ACR_NAME }}
+
+    - name: Build and Push Docker Image
+      run: |
+        IMAGE_NAME=${{ secrets.AZURE_ACR_NAME }}.azurecr.io/genai-chatbot:${{ github.sha }}
+        az acr build --registry ${{ secrets.AZURE_ACR_NAME }} --image $IMAGE_NAME .
+
+    - name: Deploy to Azure Container Apps
+      run: |
+        IMAGE_NAME=${{ secrets.AZURE_ACR_NAME }}.azurecr.io/genai-chatbot:${{ github.sha }}
+        az containerapp update \
+          --name ${{ secrets.AZURE_CONTAINERAPP_NAME }} \
+          --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+          --image $IMAGE_NAME \
+          --set-env-vars AZURE_OPENAI_KEY=${{ secrets.AZURE_OPENAI_KEY }} AZURE_OPENAI_ENDPOINT=${{ secrets.AZURE_OPENAI_ENDPOINT }}
