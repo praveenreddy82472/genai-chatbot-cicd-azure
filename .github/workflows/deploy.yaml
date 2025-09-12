@@ -1,8 +1,40 @@
+name: Build and Deploy to Azure
+
+on:
+  push:
+    branches:
+      - main  # Run on push to main branch
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Log in to Azure
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+    - name: Log in to ACR using admin user
+      run: |
+        echo ${{ secrets.ACR_PASSWORD }} | docker login ${{ secrets.AZURE_ACR_NAME }}.azurecr.io --username ${{ secrets.ACR_USERNAME }} --password-stdin
+
+    - name: Build and Push Docker Image
+      run: |
+        IMAGE_NAME=${{ secrets.AZURE_ACR_NAME }}.azurecr.io/genai-chatbot:${{ github.sha }}
+        az acr build --registry ${{ secrets.AZURE_ACR_NAME }} --image $IMAGE_NAME .
+
     - name: Deploy to Azure Container Apps
       run: |
         IMAGE_NAME=${{ secrets.AZURE_ACR_NAME }}.azurecr.io/genai-chatbot:${{ github.sha }}
 
-        echo "Deploying $IMAGE_NAME to Container App: ${{ secrets.AZURE_CONTAINERAPP_NAME }}"
+        echo "Container App Name: ${{ secrets.AZURE_CONTAINERAPP_NAME }}"
+        echo "Resource Group: ${{ secrets.AZURE_RESOURCE_GROUP }}"
+        echo "Image Name: $IMAGE_NAME"
+        echo "Container Apps Environment: ${{ secrets.AZURE_CONTAINERAPPS_ENV }}"
 
         # Create Container App if it doesn't exist
         az containerapp show \
@@ -12,22 +44,20 @@
           --name ${{ secrets.AZURE_CONTAINERAPP_NAME }} \
           --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
           --image $IMAGE_NAME \
-          --environment praven18gebai \
+          --environment ${{ secrets.AZURE_CONTAINERAPPS_ENV }} \
           --cpu 0.5 --memory 1.0Gi \
           --min-replicas 1 --max-replicas 2 \
+          --registry-server ${{ secrets.AZURE_ACR_NAME }}.azurecr.io \
+          --registry-username ${{ secrets.ACR_USERNAME }} \
+          --registry-password ${{ secrets.ACR_PASSWORD }} \
           --set-env-vars AZURE_OPENAI_KEY=${{ secrets.AZURE_OPENAI_KEY }} AZURE_OPENAI_ENDPOINT=${{ secrets.AZURE_OPENAI_ENDPOINT }}
 
-        # Attach ACR registry (one-time setup)
-        az containerapp registry set \
-          --name ${{ secrets.AZURE_CONTAINERAPP_NAME }} \
-          --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
-          --server ${{ secrets.AZURE_ACR_NAME }}.azurecr.io \
-          --username ${{ secrets.ACR_USERNAME }} \
-          --password ${{ secrets.ACR_PASSWORD }}
-
-        # Update container app with new image + env vars
+        # Update container app
         az containerapp update \
           --name ${{ secrets.AZURE_CONTAINERAPP_NAME }} \
           --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
           --image $IMAGE_NAME \
+          --registry-server ${{ secrets.AZURE_ACR_NAME }}.azurecr.io \
+          --registry-username ${{ secrets.ACR_USERNAME }} \
+          --registry-password ${{ secrets.ACR_PASSWORD }} \
           --set-env-vars AZURE_OPENAI_KEY=${{ secrets.AZURE_OPENAI_KEY }} AZURE_OPENAI_ENDPOINT=${{ secrets.AZURE_OPENAI_ENDPOINT }}
