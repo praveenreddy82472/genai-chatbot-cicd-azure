@@ -23,7 +23,7 @@ jobs:
         IMAGE_NAME=${{ secrets.AZURE_ACR_NAME }}.azurecr.io/genai-chatbot:${{ github.sha }}
         az acr build --registry ${{ secrets.AZURE_ACR_NAME }} --image $IMAGE_NAME .
 
-    - name: Deploy to Azure Container Apps (using Managed Identity)
+    - name: Deploy to Azure Container Apps
       run: |
         IMAGE_NAME=${{ secrets.AZURE_ACR_NAME }}.azurecr.io/genai-chatbot:${{ github.sha }}
 
