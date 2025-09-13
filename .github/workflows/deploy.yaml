@@ -3,7 +3,7 @@ name: Build and Deploy to Azure
 on:
   push:
     branches:
-      - main  # run on push to main branch
+      - main
 
 jobs:
   build-and-deploy:
@@ -18,21 +18,19 @@ jobs:
       with:
         creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-    - name: Log in to ACR
-      run: |
-        az acr login --name ${{ secrets.AZURE_ACR_NAME }}
-
-    - name: Build and Push Docker Image
+    - name: Build and Push Docker Image to ACR
       run: |
         IMAGE_NAME=${{ secrets.AZURE_ACR_NAME }}.azurecr.io/genai-chatbot:${{ github.sha }}
         az acr build --registry ${{ secrets.AZURE_ACR_NAME }} --image $IMAGE_NAME .
 
-    - name: Deploy to Azure Container Apps
+    - name: Deploy to Azure Container Apps (using Managed Identity)
       run: |
         IMAGE_NAME=${{ secrets.AZURE_ACR_NAME }}.azurecr.io/genai-chatbot:${{ github.sha }}
+
         az containerapp update \
           --name ${{ secrets.AZURE_CONTAINERAPP_NAME }} \
           --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
           --image $IMAGE_NAME \
-          --set-env-vars AZURE_OPENAI_KEY=${{ secrets.AZURE_OPENAI_KEY }} AZURE_OPENAI_ENDPOINT=${{ secrets.AZURE_OPENAI_ENDPOINT }}
-
+          --set-env-vars \
+              AZURE_OPENAI_KEY=${{ secrets.AZURE_OPENAI_KEY }} \
+              AZURE_OPENAI_ENDPOINT=${{ secrets.AZURE_OPENAI_ENDPOINT }}
