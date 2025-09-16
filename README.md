@@ -1,5 +1,3 @@
-﻿# genai-chatbot-cicd-azure
-
 # 🚀 MLOps CI/CD for Generative AI on Azure
 
 ## 📌 Objective
@@ -29,4 +27,5 @@ flowchart LR
     ACA -->|Consume| Users[End Users via Browser/API]
     ACA -->|Calls| AOAI[Azure OpenAI Service]
 ```
+
 
