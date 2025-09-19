@@ -1,14 +1,11 @@
 name: Build and Deploy to Azure
-
 on:
   push:
-    branches:
-      - main
-
+    branches: [ main ]
+    
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
@@ -18,19 +15,35 @@ jobs:
       with:
         creds: ${{ secrets.AZURE_CREDENTIALS }}
 
+    - name: Ensure Container Apps CLI extension
+      run: |
+        az extension add --name containerapp --upgrade || az extension update --name containerapp || true
+        az extension list
+
     - name: Build and Push Docker Image to ACR
       run: |
         IMAGE_NAME=${{ secrets.AZURE_ACR_NAME }}.azurecr.io/genai-chatbot:${{ github.sha }}
         az acr build --registry ${{ secrets.AZURE_ACR_NAME }} --image $IMAGE_NAME .
 
-    - name: Deploy to Azure Container Apps
+    - name: Assign identity to Container App
+      run: |
+        APP=${{ secrets.AZURE_CONTAINERAPP_NAME }}
+        RG=${{ secrets.AZURE_RESOURCE_GROUP }}
+        ACR=${{ secrets.AZURE_ACR_NAME }}
+        az containerapp identity assign --name "$APP" --resource-group "$RG" || true
+        PRINCIPAL_ID=$(az containerapp show --name "$APP" --resource-group "$RG" --query "identity.principalId" -o tsv)
+        echo "principal_id=$PRINCIPAL_ID" >> $GITHUB_OUTPUT
+
+    - name: Grant AcrPull to Container App identity
+      run: |
+        ACR_ID=$(az acr show --name ${{ secrets.AZURE_ACR_NAME }} --query id -o tsv)
+        az role assignment create --assignee ${{ steps.assign_identity.outputs.principal_id }} --role AcrPull --scope $ACR_ID || true
+
+    - name: Deploy to Azure Container Apps (update image)
       run: |
         IMAGE_NAME=${{ secrets.AZURE_ACR_NAME }}.azurecr.io/genai-chatbot:${{ github.sha }}
-
         az containerapp update \
           --name ${{ secrets.AZURE_CONTAINERAPP_NAME }} \
           --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
           --image $IMAGE_NAME \
-          --set-env-vars \
-              AZURE_OPENAI_KEY=${{ secrets.AZURE_OPENAI_KEY }} \
-              AZURE_OPENAI_ENDPOINT=${{ secrets.AZURE_OPENAI_ENDPOINT }}
+          --set-env-vars AZURE_OPENAI_KEY=${{ secrets.AZURE_OPENAI_KEY }} AZURE_OPENAI_ENDPOINT=${{ secrets.AZURE_OPENAI_ENDPOINT }}
