@@ -2,6 +2,7 @@ import os
 import openai
 import gradio as gr
 from dotenv import load_dotenv
+from fastapi import FastAPI
 
 # Load environment variables
 load_dotenv()
@@ -13,7 +14,7 @@ OPENAI_DEPLOYMENT = os.getenv("OPENAI_DEPLOYMENT")
 
 # Configure Azure OpenAI
 openai.api_type = "azure"
-openai.api_base = OPENAI_ENDPOINT  # e.g. https://your-resource.openai.azure.com/
+openai.api_base = OPENAI_ENDPOINT
 openai.api_key = OPENAI_KEY
 openai.api_version = "2023-05-15"
 
@@ -25,7 +26,7 @@ def gradio_chat(user_message, history):
     conversations[session_id].append({"role": "user", "content": user_message})
 
     response = openai.ChatCompletion.create(
-        engine=OPENAI_DEPLOYMENT,  # Deployment name from Azure
+        engine=OPENAI_DEPLOYMENT,
         messages=conversations[session_id],
         temperature=0.7,
         max_tokens=500,
@@ -37,6 +38,7 @@ def gradio_chat(user_message, history):
     history.append((user_message, bot_reply))
     return history, ""
 
+# Create Gradio UI
 with gr.Blocks() as demo:
     gr.Markdown("## 🤖 Azure GenAI Chatbot Playground")
     chatbot = gr.Chatbot()
@@ -46,5 +48,6 @@ with gr.Blocks() as demo:
     msg.submit(gradio_chat, [msg, chatbot], [chatbot, msg])
     clear.click(lambda: ([], ""), None, [chatbot, msg], queue=False)
 
-if __name__ == "__main__":
-    demo.launch(server_name="127.0.0.1", server_port=8000)
+# Wrap in FastAPI for Azure
+app = FastAPI()
+app = gr.mount_gradio_app(app, demo, path="/")
